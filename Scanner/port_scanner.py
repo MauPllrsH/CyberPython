@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import socket, time, argparse, sys, logging
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
 
@@ -8,6 +9,7 @@ class ScanResult:
     port: int
     state: str
     response_time: float
+    banner: str | None = None
 
 def parse_port_range(port: str) -> list[int]:
     logger.debug("Preparing list of ports to scan.")
@@ -20,7 +22,7 @@ def parse_port_range(port: str) -> list[int]:
 
     return ports
 
-def scan_port(target: str, port: int, timeout: float) -> ScanResult:
+def scan_port(target: str, port: int, timeout: float, service: bool) -> ScanResult:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     try:
@@ -28,22 +30,42 @@ def scan_port(target: str, port: int, timeout: float) -> ScanResult:
         result = sock.connect_ex((target, port))
         elapsed = time.perf_counter() - start
         is_open = "open" if (result == 0) else "closed"
-        return ScanResult(port=port, state=is_open, response_time=elapsed)
+        banner = None
+        if is_open == "open" and service:
+            try:
+                banner = sock.recv(1024).decode()
+            except Exception as exc:
+                logger.debug(f"Error while fetching banner: {exc}")
+        return ScanResult(port=port, state=is_open, response_time=elapsed, banner=banner)
     finally:
         sock.close()
     
-def scan_target(target: str, ports: list[int], timeout: float) -> list[ScanResult]:
+def scan_target(target: str, ports: list[int], timeout: float, threads: int, service: bool) -> list[ScanResult]:
     logger.info(f"Scanning port range {ports[0]}-{ports[-1]} on target with IP {target}.")
+    logger.info(f"Number of threads: {threads}.")
+    if service:
+        logger.info("Performing banner scan!")
     results = []
-    for port in ports:
-        result = scan_port(target, port, timeout)
-        results.append(result)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        futures = []
+        for port in ports:
+            futures.append(executor.submit(scan_port, target, port, timeout, service))
+        for result in concurrent.futures.as_completed(futures):
+            try:
+                results.append(result.result())
+            except Exception as exc:
+                logger.error(f"Error while adding port scan result: {exc}")
+        
+    
     return results
 
 def print_results(results: list[ScanResult]) -> None:
-    for result in results:
+    sorted_results = sorted(results, key=lambda r: r.port)
+    for result in sorted_results:
         if result.state == "open":
             print(f"[+] Port {result.port} is {result.state}! ---- Response {result.response_time:.5f}s")
+            if result.banner != None:
+                print(f"Port {result.port} responded with following banner: {result.banner}")
     
 
 def main():
@@ -52,6 +74,8 @@ def main():
     parser.add_argument("-p", "--port", help="Port(s) to scan | -p 80 for singular port | -p 1-1024 for port range", required=True, type=str)
     parser.add_argument("-t", "--target", help="IP of target", required=True, type=str)
     parser.add_argument("--timeout", help="Timeout", type=float, default=10.0)
+    parser.add_argument("--threads", help="Number of threads", type=int, default=100)
+    parser.add_argument("--service", help="Attempt a banner scan on open ports", action="store_true")
     
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("-v", "--verbose", help="Show debugging messages", action="store_true")
@@ -84,7 +108,7 @@ def main():
     
     start_time = time.perf_counter()
     try:
-        results = scan_target(target_ip, port_list, args.timeout)
+        results = scan_target(target_ip, port_list, args.timeout, args.threads, args.service)
         print_results(results)
     except KeyboardInterrupt:
         logger.warning("Scan interrupted by user.")
