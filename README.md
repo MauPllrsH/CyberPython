@@ -48,6 +48,6 @@ python scanner.py -t 10.0.0.1 -p 1-1024 -q
 [INFO] Performing banner scan!
 [+] Port 22 is open! ---- Response 0.00412s
 Port 22 responded with following banner: SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
-```
 [+] Port 80 is open! ---- Response 0.00387s
 [INFO] Total time: 1.2341 seconds
+```
