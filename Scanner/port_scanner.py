@@ -10,7 +10,7 @@ class ScanResult:
     response_time: float
 
 def parse_port_range(port: str) -> list[int]:
-    logger.debug("Preparing list of ports to scan.\n")
+    logger.debug("Preparing list of ports to scan.")
     separator_index = port.index('-')
     initial_port = int(port[0:separator_index])
     final_port = int(port[separator_index+1:])
@@ -33,7 +33,7 @@ def scan_port(target: str, port: int, timeout: float) -> ScanResult:
         sock.close()
     
 def scan_target(target: str, ports: list[int], timeout: float) -> list[ScanResult]:
-    logger.info(f"Scanning port range {ports[0]}-{ports[-1]} on target with IP {target}.\n")
+    logger.info(f"Scanning port range {ports[0]}-{ports[-1]} on target with IP {target}.")
     results = []
     for port in ports:
         result = scan_port(target, port, timeout)
@@ -54,8 +54,8 @@ def main():
     parser.add_argument("--timeout", help="Timeout", type=float, default=10.0)
     
     verbosity = parser.add_mutually_exclusive_group()
-    verbosity.add_argument("-v", "--verbose", help="Set logging levels to DEBUG", action="store_true")
-    verbosity.add_argument("-q", "--quiet", help="Set logging levels to WARNING", action="store_true")
+    verbosity.add_argument("-v", "--verbose", help="Show debugging messages", action="store_true")
+    verbosity.add_argument("-q", "--quiet", help="Show only warnings and errors", action="store_true")
 
     args = parser.parse_args()
     
@@ -87,7 +87,7 @@ def main():
         results = scan_target(target_ip, port_list, args.timeout)
         print_results(results)
     except KeyboardInterrupt:
-        logger.warning("\nScan interrupted by user.")
+        logger.warning("Scan interrupted by user.")
     finally:
         elapsed = time.perf_counter() - start_time
         logger.info(f"Total time: {elapsed:.4f} seconds")
