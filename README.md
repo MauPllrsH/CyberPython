@@ -41,11 +41,13 @@ python scanner.py -t 10.0.0.1 -p 1-1024 -q
 ```
 
 **Sample output**
+```bash
 [INFO] Resolved scanme.nmap.org to 45.33.32.156
 [INFO] Scanning port range 20-100 on target with IP 45.33.32.156.
 [INFO] Number of threads: 100.
 [INFO] Performing banner scan!
 [+] Port 22 is open! ---- Response 0.00412s
 Port 22 responded with following banner: SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
+```
 [+] Port 80 is open! ---- Response 0.00387s
 [INFO] Total time: 1.2341 seconds
